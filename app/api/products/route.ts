@@ -89,11 +89,7 @@ if (!categoryId) {
   const cat = db.getCategories().find(c => c.name === body.category);
   categoryId = cat?.id ?? 'cat-uncategorized';
 }
-      return NextResponse.json(
-        { success: false, message: 'Name, price, and category are required' },
-        { status: 400 }
-      );
-    }
+
 
     const slug =
       body.slug ||

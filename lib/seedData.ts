@@ -1,6 +1,11 @@
 import { Product, Category, Coupon, User } from './types';
 
-export const INITIAL_CATEGORIES: Category[] = [
+export const INITIAL_HERO = {
+  bannerImage: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?auto=format&fit=crop&w=1200&q=80',
+  headline: 'Handmade with Love, Crafted to Last.',
+  subtext: 'Explore our exclusive crochet collections.'
+};
+: Category[] = [
   {
     id: 'cat-uncategorized',
     name: 'Uncategorized',
