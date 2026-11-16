@@ -225,3 +225,5 @@ For inquiries, design questions, or custom requests:
 - **Email**: `contact@loopandlove.com`
 - **WhatsApp Support**: `+91 98765 43210`
 - **Location**: Bengaluru, Karnataka, India
+
+<!-- otp and admin changes -->
