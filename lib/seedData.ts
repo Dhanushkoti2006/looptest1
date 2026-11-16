@@ -2,6 +2,14 @@ import { Product, Category, Coupon, User } from './types';
 
 export const INITIAL_CATEGORIES: Category[] = [
   {
+    id: 'cat-uncategorized',
+    name: 'Uncategorized',
+    slug: 'uncategorized',
+    description: 'Fallback category for admin uploads',
+    displayOrder: 0,
+  },
+
+  {
     id: 'cat-flowers',
     name: 'Crochet Flowers & Bouquets',
     slug: 'flowers-and-bouquets',

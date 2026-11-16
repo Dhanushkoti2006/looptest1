@@ -76,7 +76,19 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body.name || !body.price || !body.category) {
+    if (!body.name || !body.price || !(body.category || body.categoryId)) {
+  return NextResponse.json(
+    { success: false, message: 'Name, price and a category are required' },
+    { status: 400 }
+  );
+}
+
+// Resolve a concrete categoryId
+let categoryId = body.categoryId;
+if (!categoryId) {
+  const cat = db.getCategories().find(c => c.name === body.category);
+  categoryId = cat?.id ?? 'cat-uncategorized';
+}
       return NextResponse.json(
         { success: false, message: 'Name, price, and category are required' },
         { status: 400 }
