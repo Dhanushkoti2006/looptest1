@@ -582,7 +582,8 @@ export const db = {
     status: OrderStatus,
     note?: string,
     trackingNumber?: string,
-    courierPartner?: string
+    courierPartner?: string,
+    paymentStatus?: import('./types').PaymentStatus
   ): Order | undefined => {
     const data = initializeDatabase();
     const order = data.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
@@ -597,6 +598,7 @@ export const db = {
 
     if (trackingNumber) order.trackingNumber = trackingNumber;
     if (courierPartner) order.courierPartner = courierPartner;
+    if (paymentStatus) order.paymentStatus = paymentStatus;
     order.updatedAt = new Date().toISOString();
 
     saveDatabase(data);
@@ -802,11 +804,18 @@ export const db = {
       (c) => c.status === 'PENDING_REVIEW' || c.status === 'QUOTED'
     ).length;
 
+    const codOrders = filteredOrders.filter((o) => o.paymentMethod?.includes('Cash on Delivery') || o.paymentMethod === 'COD');
+    const codPendingOrders = codOrders.filter((o) => o.paymentStatus !== 'SUCCESS');
+    const codPendingValue = codPendingOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
     return {
       totalOrders,
       totalRevenue,
       averageOrderValue: totalOrders > 0 ? Math.round(totalRevenue / (paidOrders.length || 1)) : 0,
       paidOrdersCount: paidOrders.length,
+      codOrdersCount: codOrders.length,
+      codPendingCount: codPendingOrders.length,
+      codPendingValue,
       pendingOrders,
       completedOrders,
       cancelledOrders,
@@ -816,7 +825,7 @@ export const db = {
       pendingCustomOrders,
       lowStockProducts,
       soldOutProducts,
-      recentOrders: filteredOrders.slice(0, 10),
+      recentOrders: filteredOrders.slice(0, 15),
       customOrdersList: data.customOrders.slice(0, 5),
     };
   },

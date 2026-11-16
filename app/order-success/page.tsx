@@ -57,13 +57,17 @@ function OrderSuccessContent() {
       </div>
 
       <span className="text-xs font-bold uppercase tracking-widest text-brand-600">
-        Payment Verified & Order Confirmed
+        {order?.paymentMethod?.includes('Cash on Delivery')
+          ? '💵 Cash on Delivery • Order Confirmed'
+          : 'Payment Verified & Order Confirmed'}
       </span>
       <h1 className="font-serif text-3xl sm:text-5xl font-bold text-brand-900 mt-2">
         Thank You for Your Order!
       </h1>
       <p className="text-sm text-gray-600 mt-2 max-w-lg mx-auto leading-relaxed">
-        We have received your payment. Our artisans have reserved your items and begun handcrafting your crochet order with utmost love!
+        {order?.paymentMethod?.includes('Cash on Delivery')
+          ? `Your handmade order is confirmed! Please keep ₹${order.totalAmount.toLocaleString('en-IN')} in cash or UPI ready for the delivery agent upon doorstep arrival.`
+          : 'We have received your payment. Our artisans have reserved your items and begun handcrafting your crochet order with utmost love!'}
       </p>
 
       {order && (
@@ -74,13 +78,19 @@ function OrderSuccessContent() {
               <span className="font-serif text-xl font-bold text-brand-900">#{order.orderNumber}</span>
             </div>
             <div>
-              <span className="text-xs text-gray-400 block font-medium">Transaction Reference</span>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                {order.razorpayPaymentId || 'Verified Online Payment'}
+              <span className="text-xs text-gray-400 block font-medium">Payment Mode</span>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                order.paymentMethod?.includes('Cash on Delivery')
+                  ? 'text-amber-800 bg-amber-50 border-amber-200'
+                  : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+              }`}>
+                {order.paymentMethod || 'Verified Online Payment'}
               </span>
             </div>
             <div>
-              <span className="text-xs text-gray-400 block font-medium">Total Paid</span>
+              <span className="text-xs text-gray-400 block font-medium">
+                {order.paymentMethod?.includes('Cash on Delivery') ? 'Amount to Pay on Delivery' : 'Total Paid'}
+              </span>
               <span className="font-bold text-brand-900 text-lg">₹{order.totalAmount.toLocaleString('en-IN')}</span>
             </div>
           </div>

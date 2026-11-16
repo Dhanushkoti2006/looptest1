@@ -16,6 +16,7 @@ import {
   ArrowRight,
   AlertCircle,
   Sparkles,
+  Banknote,
 } from 'lucide-react';
 
 declare global {
@@ -40,7 +41,7 @@ export default function CheckoutPage() {
   const [pincode, setPincode] = useState('560038');
   const [specialInstructions, setSpecialInstructions] = useState('');
 
-  const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY_UPI' | 'RAZORPAY_CARD' | 'RAZORPAY_NETBANKING'>('RAZORPAY_UPI');
+  const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY_UPI' | 'RAZORPAY_CARD' | 'RAZORPAY_NETBANKING' | 'COD'>('RAZORPAY_UPI');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -77,6 +78,7 @@ export default function CheckoutPage() {
       };
 
       // 1. Create order on server (revalidates price & inventory)
+      const isCOD = paymentMethod === 'COD';
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,7 +91,7 @@ export default function CheckoutPage() {
           shippingAddress,
           couponCode: coupon?.code,
           specialInstructions,
-          paymentMethod: `Razorpay (${paymentMethod})`,
+          paymentMethod: isCOD ? 'Cash on Delivery (COD)' : `Razorpay (${paymentMethod})`,
         }),
       });
 
@@ -101,6 +103,14 @@ export default function CheckoutPage() {
       }
 
       const createdOrder = orderData.order;
+
+      // IF CASH ON DELIVERY (COD): Order is immediately confirmed and inventory reserved!
+      if (isCOD) {
+        clearCart();
+        router.push(`/order-success?orderId=${createdOrder.id}`);
+        return;
+      }
+
       const razorpayConfig = orderData.razorpay;
 
       // 2. TRIGGER RAZORPAY CHECKOUT
@@ -395,6 +405,35 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </label>
+
+              {/* CASH ON DELIVERY OPTION */}
+              <label
+                className={`flex items-center justify-between p-4 rounded-2xl border cursor-pointer transition-all ${
+                  paymentMethod === 'COD'
+                    ? 'border-brand-600 bg-brand-50/60 ring-1 ring-brand-400'
+                    : 'border-canvas-border hover:bg-canvas-subtle'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <input
+                    type="radio"
+                    name="payment"
+                    checked={paymentMethod === 'COD'}
+                    onChange={() => setPaymentMethod('COD')}
+                    className="accent-brand-600"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-brand-900 block flex items-center gap-1.5">
+                      Cash on Delivery (COD)
+                    </span>
+                    <span className="text-[11px] text-gray-500">Pay cash or UPI to courier upon doorstep arrival</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-brand-700 bg-brand-100/70 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                  <Banknote className="w-3.5 h-3.5" />
+                  <span>Pay on Delivery</span>
+                </div>
+              </label>
             </div>
           </div>
         </div>
@@ -463,7 +502,11 @@ export default function CheckoutPage() {
             >
               {isProcessing ? (
                 <>
-                  <Sparkles className="w-4 h-4 animate-spin" /> Verifying Payment...
+                  <Sparkles className="w-4 h-4 animate-spin" /> Confirming Order...
+                </>
+              ) : paymentMethod === 'COD' ? (
+                <>
+                  <Banknote className="w-4 h-4" /> Place Cash on Delivery Order (₹{totalAmount.toLocaleString('en-IN')})
                 </>
               ) : (
                 <>

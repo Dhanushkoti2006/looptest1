@@ -117,17 +117,48 @@ export async function POST(req: Request) {
     const taxAmount = Math.round((subtotal - discountAmount) * 0.05 * 100) / 100;
     const totalAmount = Math.round((subtotal - discountAmount + shippingCharge + taxAmount) * 100) / 100;
 
-    // Create Razorpay payment order
-    const rzpOrder = await createRazorpayOrder({
-      amount: totalAmount * 100, // paise
-      receipt: `rcpt_${Date.now().toString().slice(-8)}`,
-      notes: {
-        customerName,
-        customerEmail,
-      },
-    });
+    const isCOD = paymentMethod === 'Cash on Delivery (COD)' || paymentMethod?.includes('Cash on Delivery') || paymentMethod === 'COD';
+
+    let rzpOrderId = `cod_${Date.now()}`;
+    let rzpAmount = Math.round(totalAmount * 100);
+
+    if (!isCOD) {
+      // Create Razorpay payment order for online payments
+      const rzpOrder = await createRazorpayOrder({
+        amount: totalAmount * 100, // paise
+        receipt: `rcpt_${Date.now().toString().slice(-8)}`,
+        notes: {
+          customerName,
+          customerEmail,
+        },
+      });
+      rzpOrderId = rzpOrder.id;
+      rzpAmount = rzpOrder.amount;
+    }
 
     // Save order in database
+    const initialStatus: OrderStatus = isCOD ? 'Order Confirmed' : 'Order Placed';
+    const statusHistory = isCOD
+      ? [
+        {
+          status: 'Order Placed' as OrderStatus,
+          timestamp: new Date().toISOString(),
+          note: 'Order placed via Cash on Delivery (COD).',
+        },
+        {
+          status: 'Order Confirmed' as OrderStatus,
+          timestamp: new Date().toISOString(),
+          note: 'Cash on Delivery order confirmed! Inventory reserved for crafting.',
+        },
+      ]
+      : [
+        {
+          status: 'Order Placed' as OrderStatus,
+          timestamp: new Date().toISOString(),
+          note: 'Order initiated, awaiting verified payment.',
+        },
+      ];
+
     const newOrder = db.createOrder({
       userId: userId || 'guest',
       customerName,
@@ -142,28 +173,32 @@ export async function POST(req: Request) {
       couponCode,
       totalAmount,
       paymentStatus: 'PENDING',
-      paymentMethod,
-      razorpayOrderId: rzpOrder.id,
-      orderStatus: 'Order Placed',
-      statusHistory: [
-        {
-          status: 'Order Placed',
-          timestamp: new Date().toISOString(),
-          note: 'Order initiated, awaiting verified payment.',
-        },
-      ],
+      paymentMethod: isCOD ? 'Cash on Delivery (COD)' : paymentMethod,
+      razorpayOrderId: rzpOrderId,
+      orderStatus: initialStatus,
+      statusHistory,
       specialInstructions,
     });
+
+    // If COD, reserve inventory immediately
+    if (isCOD) {
+      for (const item of validatedItems) {
+        db.reduceStock(item.productId, item.quantity);
+      }
+    }
 
     return NextResponse.json({
       success: true,
       order: newOrder,
-      razorpay: {
-        orderId: rzpOrder.id,
-        amount: rzpOrder.amount,
-        currency: rzpOrder.currency,
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_LoopAndLove2026',
-      },
+      isCOD,
+      razorpay: isCOD
+        ? undefined
+        : {
+          orderId: rzpOrderId,
+          amount: rzpAmount,
+          currency: 'INR',
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_LoopAndLove2026',
+        },
     });
   } catch (error) {
     console.error('Order creation error:', error);
@@ -174,7 +209,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, status, note, trackingNumber, courierPartner } = body;
+    const { orderId, status, note, trackingNumber, courierPartner, paymentStatus } = body;
 
     if (!orderId || !status) {
       return NextResponse.json({ success: false, message: 'Order ID and status are required' }, { status: 400 });
@@ -185,7 +220,8 @@ export async function PATCH(req: Request) {
       status as OrderStatus,
       note,
       trackingNumber,
-      courierPartner
+      courierPartner,
+      paymentStatus
     );
 
     if (!updated) {
